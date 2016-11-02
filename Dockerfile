@@ -40,14 +40,14 @@ RUN cd ./pokr.kr/ && wget http://pokr.kr/static/db/pokrdb.dump
 
 
 USER postgres
-RUN service  postgresql start && psql -c "CREATE DATABASE pokrdb;"  && psql -d pokrdb -f ./pokr.kr/pokrdb.dump
+RUN service  postgresql start && psql -c "CREATE DATABASE pokrdb;"  && psql -d pokrdb -f ./pokr.kr/pokrdb.dump &&\
+	cd ./pokr.kr/ && ./shell.py db init &&\
+	alembic stamp head
+
 
 USER root
-# TODO!!!!
-RUN cd ./pokr.kr/ && ./shell.py db init
-RUN alembic stamp head
-
-RUN ./pokr.kr/run.py  -p 9900 &
+RUN echo "local   all             docker                                peer" > /etc/postgresql/9.5/main/pg_hba.conf
+#RUN ./pokr.kr/run.py  -p 9900 &
 
 
 VOLUME ["/data", "/tmp", "/share"]
