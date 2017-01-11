@@ -10,9 +10,16 @@ ENV PATH=$PATH:/root/bin
 
 RUN apt-get update
 RUN apt-get install -y sudo git python python-pip sudo nodejs postgresql-9.5 npm python-psycopg2 node-less
+
+
+RUN apt-get install -y vim wget
+
 RUN git clone https://github.com/teampopong/pokr.kr
 RUN npm install -g uglify-js
+RUN pip install --upgrade pip
+RUN wget https://raw.githubusercontent.com/teampopong/pokr.kr/master/requirements.txt  -O pokr.kr/requirements.txt
 RUN cd ./pokr.kr/ && pip install -r requirements.txt
+RUN pip install oauthlib --upgrade
 
 
 RUN pip install git+https://github.com/teampopong/popong-models.git
@@ -26,7 +33,7 @@ RUN cd pokr.kr/ && .conf.samples/copyall.sh
 
 #RUN createuser postgres
 USER postgres
-RUN service  postgresql start &&  psql -c "CREATE USER docker WITH SUPERUSER PASSWORD 'docker';"
+RUN service  postgresql start &&  sleep 10 && psql -c "CREATE USER docker WITH SUPERUSER PASSWORD 'docker';"  && service  postgresql stop
 #RUN    /etc/init.d/postgresql start &&\
 #    psql --command "CREATE USER docker WITH SUPERUSER PASSWORD 'docker';"
 
@@ -40,15 +47,25 @@ RUN cd ./pokr.kr/ && wget http://pokr.kr/static/db/pokrdb.dump
 
 
 USER postgres
-RUN service  postgresql start && psql -c "CREATE DATABASE pokrdb;"  && psql -d pokrdb -f ./pokr.kr/pokrdb.dump &&\
+RUN service  postgresql start && sleep 10 && psql -c "CREATE DATABASE pokrdb;"  && psql -d pokrdb -f ./pokr.kr/pokrdb.dump &&\
 	cd ./pokr.kr/ && ./shell.py db init &&\
-	alembic stamp head
+	alembic stamp head && service  postgresql stop
 
 
 USER root
-RUN echo "local   all             docker                                peer" > /etc/postgresql/9.5/main/pg_hba.conf
+RUN cp /etc/postgresql/9.5/main/pg_hba.conf  /etc/postgresql/9.5/main/pg_hba.conf.old
+RUN echo "local   all             all                                     peer"  > /etc/postgresql/9.5/main/pg_hba.conf
+RUN echo "host    all             all             127.0.0.1/32            md5"  >> /etc/postgresql/9.5/main/pg_hba.conf
+RUN echo "host    all             all             ::1/128                 md5"  >> /etc/postgresql/9.5/main/pg_hba.conf
+RUN echo "local   all             docker                                trust" >> /etc/postgresql/9.5/main/pg_hba.conf
+
+
+#RUN cd ./pokr.kr/pokr/static/node_modules/d3 && npm install
+RUN ln -s /usr/bin/nodejs /usr/bin/node
+EXPOSE 9900
 #RUN ./pokr.kr/run.py  -p 9900 &
 
 
 VOLUME ["/data", "/tmp", "/share"]
+CMD [ "service", "postgresql","start"]
 CMD [ "/bin/bash" ]
